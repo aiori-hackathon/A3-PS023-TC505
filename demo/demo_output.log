@@ -58,7 +58,7 @@ Request Payload:
 
 Response Code (Expected 201): 201
 {
-  "id": "vm-75988e0c-20b3-49a9-b83b-b5f1a080c1d1",
+  "id": "vm-b957933b-df93-4f78-98ac-dd419f60ee95",
   "name": "payment-api-01",
   "owner_label": "team-1",
   "vcpu": 2,
@@ -66,9 +66,9 @@ Response Code (Expected 201): 201
   "host": "worker-1",
   "label": "ACTIVE",
   "pid": 1001,
-  "start_time": "2026-10-31T16:45:01.943905+00:00",
-  "cmdline": "cloud-hypervisor --api-socket /tmp/ch-vm-75988.sock --cpus boot=2 --memory size=2048M",
-  "created_at": "2026-10-31T16:45:01.938366+00:00",
+  "start_time": "2026-10-31T16:50:13.249492+00:00",
+  "cmdline": "cloud-hypervisor --api-socket /tmp/ch-vm-b9579.sock --cpus boot=2 --memory size=2048M",
+  "created_at": "2026-10-31T16:50:13.243368+00:00",
   "selected_host": "worker-1",
   "evaluation": [
     {
@@ -85,7 +85,7 @@ Response Code (Expected 201): 201
     }
   ]
 }
-Team 1 VM vm-75988e0c-20b3-49a9-b83b-b5f1a080c1d1 active on worker-1
+Team 1 VM vm-b957933b-df93-4f78-98ac-dd419f60ee95 active on worker-1
 
 ======================================================================
   STEP 4: SET BOOT_FAIL ON WORKER-2; TEAM 2 CREATES 2048 MiB -> FAILED_CLEANUP_NEEDED
@@ -102,7 +102,7 @@ Request Payload:
 
 Response Code (Expected 500): 500
 {
-  "id": "vm-e8786023-7207-4021-93b8-f158be22d2e2",
+  "id": "vm-060c7bf0-dad2-442b-8bff-c1788681b2b6",
   "host": "worker-2",
   "label": "FAILED_CLEANUP_NEEDED",
   "error": "Simulated hypervisor boot failure (fault=boot_fail)",
@@ -126,7 +126,7 @@ Response Code (Expected 500): 500
     }
   ]
 }
-Team 2 VM vm-e8786023-7207-4021-93b8-f158be22d2e2 placed on worker-2 with label FAILED_CLEANUP_NEEDED (reservation kept)
+Team 2 VM vm-060c7bf0-dad2-442b-8bff-c1788681b2b6 placed on worker-2 with label FAILED_CLEANUP_NEEDED (reservation kept)
 Fault mode reset to 'none' on worker-2
 
 ======================================================================
@@ -158,12 +158,12 @@ Response Code (Expected 409): 409
       "reason": "safe_free (1280 MiB) < requested (2048 MiB) [mem_available: 1536 MiB, budget: 4096 MiB, reserved: 2048 MiB, buffer: 256 MiB]",
       "blockers": [
         {
-          "vm_id": "vm-75988e0c-20b3-49a9-b83b-b5f1a080c1d1",
+          "vm_id": "vm-b957933b-df93-4f78-98ac-dd419f60ee95",
           "owner_label": "team-1",
           "memory_mib": 2048,
           "label": "ACTIVE",
-          "created_at": "2026-10-31T16:45:01.938366+00:00",
-          "last_verified_at": "2026-10-31T16:45:01.938366+00:00",
+          "created_at": "2026-10-31T16:50:13.243368+00:00",
+          "last_verified_at": "2026-10-31T16:50:13.243368+00:00",
           "safe_action": "Do not stop automatically. Only an explicit stop request may stop it."
         }
       ]
@@ -175,18 +175,18 @@ Response Code (Expected 409): 409
       "reason": "safe_free (1280 MiB) < requested (2048 MiB) [mem_available: 1536 MiB, budget: 4096 MiB, reserved: 2048 MiB, buffer: 256 MiB]",
       "blockers": [
         {
-          "vm_id": "vm-e8786023-7207-4021-93b8-f158be22d2e2",
+          "vm_id": "vm-060c7bf0-dad2-442b-8bff-c1788681b2b6",
           "owner_label": "team-2",
           "memory_mib": 2048,
           "label": "FAILED_CLEANUP_NEEDED",
-          "created_at": "2026-10-31T16:45:01.961734+00:00",
-          "last_verified_at": "2026-10-31T16:45:01.961734+00:00",
+          "created_at": "2026-10-31T16:50:13.266765+00:00",
+          "last_verified_at": "2026-10-31T16:50:13.266765+00:00",
           "safe_action": "Authorised cleanup recommended."
         }
       ]
     }
   ],
-  "next_step": "Cleanup required for failed VM(s): vm-e8786023-7207-4021-93b8-f158be22d2e2. Run authorised cleanup and retry."
+  "next_step": "Cleanup required for failed VM(s): vm-060c7bf0-dad2-442b-8bff-c1788681b2b6. Run authorised cleanup and retry."
 }
 
 ======================================================================
@@ -207,7 +207,7 @@ Attempting /cleanup on ACTIVE VM -> Response Code (Expected 409): 409
 Response Code (Expected 200): 200
 {
   "receipt": {
-    "vm_id": "vm-e8786023-7207-4021-93b8-f158be22d2e2",
+    "vm_id": "vm-060c7bf0-dad2-442b-8bff-c1788681b2b6",
     "action": "CLEANUP",
     "result": "SUCCESS",
     "checks": {
@@ -237,7 +237,7 @@ Retrying Request Payload:
 
 Response Code (Expected 201): 201
 {
-  "id": "vm-972d263f-b09e-4fd5-a3a3-1ba59817eaef",
+  "id": "vm-da444d68-6f63-4e08-b708-e2ddacd4beb6",
   "name": "analytics-query-03",
   "owner_label": "team-3",
   "vcpu": 2,
@@ -245,9 +245,9 @@ Response Code (Expected 201): 201
   "host": "worker-2",
   "label": "ACTIVE",
   "pid": 1002,
-  "start_time": "2026-10-31T16:45:02.021127+00:00",
-  "cmdline": "cloud-hypervisor --api-socket /tmp/ch-vm-972d2.sock --cpus boot=2 --memory size=2048M",
-  "created_at": "2026-10-31T16:45:02.015570+00:00",
+  "start_time": "2026-10-31T16:50:13.323906+00:00",
+  "cmdline": "cloud-hypervisor --api-socket /tmp/ch-vm-da444.sock --cpus boot=2 --memory size=2048M",
+  "created_at": "2026-10-31T16:50:13.318419+00:00",
   "selected_host": "worker-2",
   "evaluation": [
     {
@@ -264,7 +264,7 @@ Response Code (Expected 201): 201
     }
   ]
 }
-Team 3 VM vm-972d263f-b09e-4fd5-a3a3-1ba59817eaef successfully scheduled on worker-2
+Team 3 VM vm-da444d68-6f63-4e08-b708-e2ddacd4beb6 successfully scheduled on worker-2
 
 ======================================================================
   STEP 9: STOP TEAM 3'S VM -> RECEIPT AND FINAL CLUSTER STATUS
@@ -272,7 +272,7 @@ Team 3 VM vm-972d263f-b09e-4fd5-a3a3-1ba59817eaef successfully scheduled on work
 Response Code (Expected 200): 200
 {
   "receipt": {
-    "vm_id": "vm-972d263f-b09e-4fd5-a3a3-1ba59817eaef",
+    "vm_id": "vm-da444d68-6f63-4e08-b708-e2ddacd4beb6",
     "action": "STOP",
     "result": "SUCCESS",
     "checks": {
