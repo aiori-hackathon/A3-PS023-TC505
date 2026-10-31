@@ -87,3 +87,37 @@ class HostStatus(BaseModel):
 
 class ClusterStatusResponse(BaseModel):
     hosts: List[HostStatus]
+
+
+class BlockerInfo(BaseModel):
+    vm_id: str
+    owner_label: str
+    memory_mib: int
+    label: str
+    created_at: str
+    last_verified_at: str
+    safe_action: str
+
+
+class HostExplanation(BaseModel):
+    worker_id: str
+    reachable: bool
+    safe_free_mib: int
+    reason: str
+    blockers: List[BlockerInfo]
+
+
+class RequestedVMInfo(BaseModel):
+    name: str
+    owner_label: str
+    memory_mib: int
+    vcpu: int
+
+
+class NotPlacedResponse(BaseModel):
+    result: str = "NOT_PLACED"
+    requested: RequestedVMInfo
+    rule: str
+    hosts: List[HostExplanation]
+    next_step: str
+

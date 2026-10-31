@@ -94,8 +94,12 @@ def test_placement_capacity_exhausted_returns_409(
     resp = client.post("/vms", json=payload, headers=auth_headers)
     assert resp.status_code == 409
     data = resp.json()
-    assert data["error"] == "INSUFFICIENT_CAPACITY"
-    assert len(data["evaluation"]) == 2
-    for host_eval in data["evaluation"]:
-        assert host_eval["eligible"] is False
-        assert "safe_free" in host_eval["reason"]
+    assert data["result"] == "NOT_PLACED"
+    assert data["requested"]["memory_mib"] == 2048
+    assert "safe_free" in data["rule"]
+    assert len(data["hosts"]) == 2
+    for host_info in data["hosts"]:
+        assert host_info["reachable"] is True
+        assert "safe_free" in host_info["reason"]
+    assert "next_step" in data
+

@@ -22,6 +22,10 @@ from controller.models import (
     HostStatus,
     HostEvaluation,
     Receipt,
+    NotPlacedResponse,
+    HostExplanation,
+    BlockerInfo,
+    RequestedVMInfo,
 )
 from controller.database import (
     init_db,
@@ -32,6 +36,8 @@ from controller.database import (
     update_vm_label,
     get_reserved_memory_by_host,
     get_label_counts_by_host,
+    get_blockers_by_host,
+    events_has_foreign_key,
 )
 from controller.placement import (
     validate_limits,
@@ -93,14 +99,16 @@ async def create_vm(req: VMCreateRequest) -> Any:
             hosts_capacity.append(
                 {
                     "worker_id": host_id,
+                    "reachable": True,
                     "mem_available_mib": cap.get("mem_available_mib", 0),
                 }
             )
         except Exception as e:
-            # If a worker is unreachable, report 0 available
+            # If a worker is unreachable, report 0 available and reachable=False
             hosts_capacity.append(
                 {
                     "worker_id": host_id,
+                    "reachable": False,
                     "mem_available_mib": 0,
                     "error": str(e),
                 }
@@ -114,13 +122,67 @@ async def create_vm(req: VMCreateRequest) -> Any:
     )
 
     if not selected_host:
+        # Record event for rejection without creating VM row or calling worker create
+        has_fk = events_has_foreign_key(None)
+        event_vm_id = None if has_fk else None
+        insert_event(
+            db_path=None,
+            vm_id=event_vm_id,
+            action="PLACEMENT",
+            old_state=None,
+            new_state="REJECTED",
+            message=f"Placement rejected (NOT_PLACED): No worker has sufficient safe_free for VM '{req.name}' ({req.memory_mib} MiB, vcpu={req.vcpu}) requested by '{req.owner_label}'",
+        )
+
+        all_blockers: List[Dict[str, Any]] = []
+        hosts_output: List[Dict[str, Any]] = []
+
+        for ev in evaluations:
+            host_id = ev["host"]
+            is_reachable = ev.get("reachable", True)
+            blockers = get_blockers_by_host(None, host_id)
+            all_blockers.extend(blockers)
+            hosts_output.append(
+                {
+                    "worker_id": host_id,
+                    "reachable": is_reachable,
+                    "safe_free_mib": ev["safe_free"],
+                    "reason": ev["reason"],
+                    "blockers": blockers,
+                }
+            )
+
+        failed_blockers = [
+            b["vm_id"]
+            for b in all_blockers
+            if b["label"] == "FAILED_CLEANUP_NEEDED"
+        ]
+        unknown_blockers = [
+            b["vm_id"] for b in all_blockers if b["label"] == "UNKNOWN"
+        ]
+
+        if failed_blockers:
+            next_step = f"Cleanup required for failed VM(s): {', '.join(failed_blockers)}. Run authorised cleanup and retry."
+        elif unknown_blockers:
+            next_step = f"VM(s) in UNKNOWN state require operator review: {', '.join(unknown_blockers)}. Nothing is cleaned automatically."
+        elif all_blockers:
+            next_step = "Every blocker is ACTIVE and protected. Wait for workloads to complete or request an explicit stop."
+        else:
+            next_step = "No candidate host has sufficient capacity. Increase cluster capacity or reduce requested resources."
+
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={
-                "error": "INSUFFICIENT_CAPACITY",
-                "message": "No host has sufficient safe_free capacity to schedule VM",
-                "requested_mib": req.memory_mib,
-                "evaluation": evaluations,
+                "result": "NOT_PLACED",
+                "requested": {
+                    "name": req.name,
+                    "owner_label": req.owner_label,
+                    "memory_mib": req.memory_mib,
+                    "vcpu": req.vcpu,
+                },
+                "rule": "safe_free = min(mem_available, budget - reserved) - safety_buffer",
+                "hosts": hosts_output,
+                "next_step": next_step,
             },
         )
 
@@ -332,7 +394,7 @@ async def cleanup_vm(id: str) -> Any:
     # Rule 11 check: Never stop or clean an ACTIVE VM automatically
     if vm["label"] == "ACTIVE":
         return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             content={
                 "error": "INVALID_STATE",
                 "message": "Cannot directly clean up an ACTIVE VM; use /vms/{id}/stop instead",

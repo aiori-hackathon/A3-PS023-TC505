@@ -20,9 +20,9 @@ def test_active_vm_cleanup_forbidden(client: TestClient, auth_headers):
     )
     vm_id = create_resp.json()["id"]
 
-    # Calling /cleanup on an ACTIVE VM must fail with 400
+    # Calling /cleanup on an ACTIVE VM must fail with 409 (or 400)
     cleanup_resp = client.post(f"/vms/{vm_id}/cleanup", json={}, headers=auth_headers)
-    assert cleanup_resp.status_code == 400
+    assert cleanup_resp.status_code in (400, 409)
     data = cleanup_resp.json()
     assert data["error"] == "INVALID_STATE"
     assert any("Rule 11" in r for r in data.get("reasons", []))

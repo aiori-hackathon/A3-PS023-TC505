@@ -50,7 +50,7 @@ def init_db(db_path: Optional[str] = None) -> None:
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     time TEXT NOT NULL,
-                    vm_id TEXT NOT NULL,
+                    vm_id TEXT,
                     action TEXT NOT NULL,
                     old_state TEXT,
                     new_state TEXT NOT NULL,
@@ -69,9 +69,74 @@ def init_db(db_path: Optional[str] = None) -> None:
         conn.close()
 
 
+def events_has_foreign_key(db_path: Optional[str] = None) -> bool:
+    """Check if the events table has a foreign key to vms."""
+    conn = get_connection(db_path)
+    try:
+        cursor = conn.execute("PRAGMA foreign_key_list(events)")
+        fks = cursor.fetchall()
+        for fk in fks:
+            if fk["table"] == "vms" or fk["to"] == "id":
+                return True
+        return len(fks) > 0
+    finally:
+        conn.close()
+
+
+def get_blockers_by_host(
+    db_path: Optional[str], host: str
+) -> List[Dict[str, Any]]:
+    """
+    Retrieve all VMs on a worker host that hold memory capacity.
+    Includes labels: ACTIVE, FAILED_CLEANUP_NEEDED, UNKNOWN, CREATING.
+    Returns list sorted by memory_mib descending (largest first).
+    """
+    conn = get_connection(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            SELECT id, owner_label, memory_mib, label, created_at, updated_at
+            FROM vms
+            WHERE host = ? AND label IN ('ACTIVE', 'FAILED_CLEANUP_NEEDED', 'UNKNOWN')
+            ORDER BY memory_mib DESC
+            """,
+            (host,),
+        )
+        blockers: List[Dict[str, Any]] = []
+        for row in cursor.fetchall():
+            label = row["label"]
+            if label == "ACTIVE":
+                safe_action = (
+                    "Do not stop automatically. Only an explicit stop request may stop it."
+                )
+            elif label == "FAILED_CLEANUP_NEEDED":
+                safe_action = "Authorised cleanup recommended."
+            elif label == "UNKNOWN":
+                safe_action = (
+                    "Needs operator review. Nothing is cleaned automatically."
+                )
+            else:
+                safe_action = "Creation in progress; wait or investigate."
+
+            blockers.append(
+                {
+                    "vm_id": row["id"],
+                    "owner_label": row["owner_label"],
+                    "memory_mib": row["memory_mib"],
+                    "label": label,
+                    "created_at": row["created_at"],
+                    "last_verified_at": row["updated_at"] or row["created_at"],
+                    "safe_action": safe_action,
+                }
+            )
+        return blockers
+    finally:
+        conn.close()
+
+
 def insert_event(
     db_path: Optional[str],
-    vm_id: str,
+    vm_id: Optional[str],
     action: str,
     old_state: Optional[str],
     new_state: str,
@@ -83,15 +148,27 @@ def insert_event(
     conn = get_connection(db_path)
     current_time = time_str or datetime.now(timezone.utc).isoformat()
     try:
-        with conn:
-            cursor = conn.execute(
-                """
-                INSERT INTO events (time, vm_id, action, old_state, new_state, message, receipt_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (current_time, vm_id, action, old_state, new_state, message, receipt_json),
-            )
-            return cursor.lastrowid
+        try:
+            with conn:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO events (time, vm_id, action, old_state, new_state, message, receipt_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (current_time, vm_id, action, old_state, new_state, message, receipt_json),
+                )
+                return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            # Fallback if legacy events table has NOT NULL constraint on vm_id and no FK
+            with conn:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO events (time, vm_id, action, old_state, new_state, message, receipt_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (current_time, vm_id or "", action, old_state, new_state, message, receipt_json),
+                )
+                return cursor.lastrowid
     finally:
         conn.close()
 

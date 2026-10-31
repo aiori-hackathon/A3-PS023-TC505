@@ -64,6 +64,22 @@ def evaluate_placement(
 
     for host_info in hosts_capacity:
         host_id = host_info["worker_id"]
+        is_reachable = host_info.get("reachable", True)
+
+        if not is_reachable:
+            reason = f"Worker {host_id} is unreachable and skipped: {host_info.get('error', 'connection failed')}"
+            evaluations.append(
+                {
+                    "host": host_id,
+                    "worker_id": host_id,
+                    "reachable": False,
+                    "safe_free": 0,
+                    "eligible": False,
+                    "reason": reason,
+                }
+            )
+            continue
+
         mem_available = host_info.get("mem_available_mib", 0)
         reserved = reserved_by_host.get(host_id, 0)
 
@@ -88,6 +104,8 @@ def evaluate_placement(
         evaluations.append(
             {
                 "host": host_id,
+                "worker_id": host_id,
+                "reachable": True,
                 "safe_free": safe_free,
                 "eligible": eligible,
                 "reason": reason,
